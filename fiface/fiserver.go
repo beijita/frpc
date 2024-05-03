@@ -5,4 +5,5 @@ type IServer interface {
 	Stop()
 	Serve()
 	AddRouter(msgID int64, router IRouter)
+	GetConnMgr() IConnManager
 }

@@ -15,6 +15,11 @@ type Server struct {
 	IP        string
 	Port      int
 	ApiHandle fiface.IMsgHandle
+	ConnMgr   fiface.IConnManager
+}
+
+func (s *Server) GetConnMgr() fiface.IConnManager {
+	return s.ConnMgr
 }
 
 func (s *Server) AddRouter(msgId int64, router fiface.IRouter) {
@@ -29,6 +34,7 @@ func NewServer(name string) fiface.IServer {
 		IP:        fconfig.GlobalConf.Host,
 		Port:      fconfig.GlobalConf.TcpPort,
 		ApiHandle: NewMsgHandle(),
+		ConnMgr:   NewConnManager(),
 	}
 }
 
@@ -63,15 +69,20 @@ func (s *Server) Start() {
 				log.Println("listener.AcceptTCP err=", err)
 				continue
 			}
-			dealConn := NewConnection(conn, cid, s.ApiHandle)
+			dealConn := NewConnection(s, conn, cid, s.ApiHandle)
 			cid++
 			go dealConn.Start()
+
+			if s.GetConnMgr().Len() > fconfig.GlobalConf.MaxConn {
+				dealConn.Stop()
+			}
 		}
 	}()
 }
 
 func (s *Server) Stop() {
 	log.Println("FServer Stop")
+	s.GetConnMgr().ClearAll()
 }
 
 func (s *Server) Serve() {

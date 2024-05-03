@@ -10,6 +10,7 @@ import (
 )
 
 type Connection struct {
+	TCPServer    fiface.IServer // 持有聚合根，感觉不合理，后续优化td
 	Conn         *net.TCPConn
 	ConnID       int64
 	isClosed     bool
@@ -17,6 +18,24 @@ type Connection struct {
 	ExitBuffChan chan bool
 	ApiHandle    fiface.IMsgHandle
 	msgChan      chan []byte
+	msgBuffChan  chan []byte
+}
+
+func (c *Connection) SendBuffMsg(msgID int64, data []byte) error {
+	if c.isClosed {
+		return errors.New("connection is closed")
+	}
+	var dp DataPack
+	packData, err := dp.PackData(&Message{
+		MsgID:   msgID,
+		DataLen: int64(len(data)),
+		Data:    data,
+	})
+	if err != nil {
+		return err
+	}
+	c.msgBuffChan <- packData
+	return nil
 }
 
 func (c *Connection) SendMsg(msgID int64, data []byte) error {
@@ -36,15 +55,19 @@ func (c *Connection) SendMsg(msgID int64, data []byte) error {
 	return nil
 }
 
-func NewConnection(conn *net.TCPConn, connID int64, apiHandle fiface.IMsgHandle) *Connection {
-	return &Connection{
+func NewConnection(server fiface.IServer, conn *net.TCPConn, connID int64, apiHandle fiface.IMsgHandle) *Connection {
+	c := &Connection{
+		TCPServer:    server,
 		Conn:         conn,
 		ConnID:       connID,
 		isClosed:     false,
 		ApiHandle:    apiHandle,
 		ExitBuffChan: make(chan bool, 1),
 		msgChan:      make(chan []byte),
+		msgBuffChan:  make(chan []byte, fconfig.GlobalConf.MaxPacketSize),
 	}
+	c.TCPServer.GetConnMgr().Add(c)
+	return c
 }
 
 func (c *Connection) Start() {
@@ -68,6 +91,16 @@ func (c *Connection) StartWriter() {
 			if err != nil {
 				return
 			}
+		case data, ok := <-c.msgBuffChan:
+			if ok {
+				_, err := c.Conn.Write(data)
+				if err != nil {
+					return
+				}
+			} else {
+				log.Println("msgBuffChan is closed")
+				break
+			}
 		case <-c.ExitBuffChan:
 			return
 		}
@@ -81,8 +114,10 @@ func (c *Connection) Stop() {
 	}
 	c.isClosed = true
 	c.ExitBuffChan <- true
+	c.TCPServer.GetConnMgr().Remove(c)
 	c.Conn.Close()
 	close(c.ExitBuffChan)
+	close(c.msgChan)
 }
 
 func (c *Connection) GetTCPConnection() *net.TCPConn {
