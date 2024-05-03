@@ -47,7 +47,7 @@ func init() {
 		Name:          "frpc",
 		Version:       "V0.4",
 		MaxPacketSize: 4096,
-		MaxConn:       12000,
+		MaxConn:       8,
 	}
 	GlobalConf.Reload()
 }

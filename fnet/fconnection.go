@@ -7,6 +7,7 @@ import (
 	"io"
 	"log"
 	"net"
+	"sync"
 )
 
 type Connection struct {
@@ -19,6 +20,27 @@ type Connection struct {
 	ApiHandle    fiface.IMsgHandle
 	msgChan      chan []byte
 	msgBuffChan  chan []byte
+
+	PropertyMap map[string]interface{}
+	propLock    sync.RWMutex
+}
+
+func (c *Connection) SetProperty(key string, value interface{}) {
+	c.propLock.Lock()
+	defer c.propLock.Unlock()
+	c.PropertyMap[key] = value
+}
+
+func (c *Connection) GetProperty(key string) interface{} {
+	c.propLock.RLock()
+	defer c.propLock.RUnlock()
+	return c.PropertyMap[key]
+}
+
+func (c *Connection) RemoveProperty(key string) {
+	c.propLock.Lock()
+	defer c.propLock.Unlock()
+	delete(c.PropertyMap, key)
 }
 
 func (c *Connection) SendBuffMsg(msgID int64, data []byte) error {
@@ -65,6 +87,7 @@ func NewConnection(server fiface.IServer, conn *net.TCPConn, connID int64, apiHa
 		ExitBuffChan: make(chan bool, 1),
 		msgChan:      make(chan []byte),
 		msgBuffChan:  make(chan []byte, fconfig.GlobalConf.MaxPacketSize),
+		PropertyMap:  make(map[string]interface{}),
 	}
 	c.TCPServer.GetConnMgr().Add(c)
 	return c

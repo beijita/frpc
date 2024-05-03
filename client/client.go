@@ -14,11 +14,13 @@ func main() {
 		log.Println("net.Dial err=", err)
 		return
 	}
-	for {
-		SendMsg(conn, 1007, "hello")
-		SendMsg(conn, 1009, "变形金刚")
-		time.Sleep(3 * time.Second)
-	}
+	//for {
+	SendMsg(conn, 1007, "hello")
+	SendMsg(conn, 1009, "变形金刚")
+	time.Sleep(3 * time.Second)
+
+	conn.Close()
+	//}
 }
 
 func SendMsg(conn net.Conn, msgId int64, message string) {
