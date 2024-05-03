@@ -10,12 +10,14 @@ import (
 )
 
 type Server struct {
-	Name      string
-	IPVersion string
-	IP        string
-	Port      int
-	ApiHandle fiface.IMsgHandle
-	ConnMgr   fiface.IConnManager
+	Name        string
+	IPVersion   string
+	IP          string
+	Port        int
+	ApiHandle   fiface.IMsgHandle
+	ConnMgr     fiface.IConnManager
+	OnConnStart func(connection fiface.IConnection)
+	OnConnStop  func(connection fiface.IConnection)
 }
 
 func (s *Server) GetConnMgr() fiface.IConnManager {
@@ -89,4 +91,26 @@ func (s *Server) Serve() {
 	log.Println("FServer Serve")
 	s.Start()
 	select {}
+}
+
+func (s *Server) SetOnConnStart(f func(connection fiface.IConnection)) {
+	s.OnConnStart = f
+}
+
+func (s *Server) SetOnConnStop(f func(connection fiface.IConnection)) {
+	s.OnConnStop = f
+}
+
+func (s *Server) CallOnConnStart(connection fiface.IConnection) {
+	log.Println("Server.CallOnConnStart start, OnConnStart=", s.OnConnStart)
+	if s.OnConnStart != nil {
+		s.OnConnStart(connection)
+	}
+}
+
+func (s *Server) CallOnConnStop(connection fiface.IConnection) {
+	log.Println("Server.CallOnConnStop start, OnConnStop=", s.OnConnStop)
+	if s.OnConnStop != nil {
+		s.OnConnStop(connection)
+	}
 }

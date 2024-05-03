@@ -74,6 +74,7 @@ func (c *Connection) Start() {
 	log.Println("Connection.Start start")
 	go c.StartReader()
 	go c.StartWriter()
+	c.TCPServer.CallOnConnStart(c)
 	for {
 		select {
 		case <-c.ExitBuffChan:
@@ -113,6 +114,7 @@ func (c *Connection) Stop() {
 		return
 	}
 	c.isClosed = true
+	c.TCPServer.CallOnConnStop(c)
 	c.ExitBuffChan <- true
 	c.TCPServer.GetConnMgr().Remove(c)
 	c.Conn.Close()
