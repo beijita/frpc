@@ -3,6 +3,7 @@ package fnet
 import (
 	"errors"
 	"fmt"
+	"github.com/frpc/fconfig"
 	"github.com/frpc/fiface"
 	"log"
 	"net"
@@ -21,11 +22,12 @@ func (s *Server) AddRouter(router fiface.IRouter) {
 }
 
 func NewServer(name string) fiface.IServer {
+	fconfig.GlobalConf.Reload()
 	return &Server{
-		Name:      name,
+		Name:      fconfig.GlobalConf.Name,
 		IPVersion: "tcp4",
-		IP:        "127.0.0.1",
-		Port:      7777,
+		IP:        fconfig.GlobalConf.Host,
+		Port:      fconfig.GlobalConf.TcpPort,
 	}
 }
 
