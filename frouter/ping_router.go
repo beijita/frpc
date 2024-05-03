@@ -2,7 +2,6 @@ package frouter
 
 import (
 	"github.com/frpc/fiface"
-	"github.com/frpc/fnet"
 	"log"
 )
 
@@ -23,18 +22,7 @@ func (p *PingRouter) Handle(request fiface.IRequest) {
 	log.Println("PingRouter.Handle start")
 
 	log.Println("PingRouter.Handle data=", string(request.GetData().GetData()))
-
-	var dp fnet.DataPack
-	response := fnet.Message{
-		MsgID:   request.GetData().GetMsgID(),
-		DataLen: int64(len("game over")),
-		Data:    []byte("game over"),
-	}
-	packData, err := dp.PackData(&response)
-	if err != nil {
-		return
-	}
-	_, err = request.GetConnection().GetTCPConnection().Write(packData)
+	err := request.GetConnection().SendMsg(request.GetData().GetMsgID(), []byte("game over"))
 	if err != nil {
 		log.Println("PingRouter.Handle GetTCPConnection.Write err", err)
 		return

@@ -14,11 +14,11 @@ type Server struct {
 	IPVersion string
 	IP        string
 	Port      int
-	Router    fiface.IRouter
+	ApiHandle fiface.IMsgHandle
 }
 
-func (s *Server) AddRouter(router fiface.IRouter) {
-	s.Router = router
+func (s *Server) AddRouter(msgId int64, router fiface.IRouter) {
+	s.ApiHandle.AddRouter(msgId, router)
 }
 
 func NewServer(name string) fiface.IServer {
@@ -28,6 +28,7 @@ func NewServer(name string) fiface.IServer {
 		IPVersion: "tcp4",
 		IP:        fconfig.GlobalConf.Host,
 		Port:      fconfig.GlobalConf.TcpPort,
+		ApiHandle: NewMsgHandle(),
 	}
 }
 
@@ -61,7 +62,7 @@ func (s *Server) Start() {
 				log.Println("listener.AcceptTCP err=", err)
 				continue
 			}
-			dealConn := NewConnection(conn, cid, s.Router)
+			dealConn := NewConnection(conn, cid, s.ApiHandle)
 			cid++
 			go dealConn.Start()
 		}

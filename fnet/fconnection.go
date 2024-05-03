@@ -14,7 +14,7 @@ type Connection struct {
 	isClosed     bool
 	handleAPI    fiface.HandFunc
 	ExitBuffChan chan bool
-	Router       fiface.IRouter
+	ApiHandle    fiface.IMsgHandle
 }
 
 func (c *Connection) SendMsg(msgID int64, data []byte) error {
@@ -38,12 +38,12 @@ func (c *Connection) SendMsg(msgID int64, data []byte) error {
 	return nil
 }
 
-func NewConnection(conn *net.TCPConn, connID int64, router fiface.IRouter) *Connection {
+func NewConnection(conn *net.TCPConn, connID int64, apiHandle fiface.IMsgHandle) *Connection {
 	return &Connection{
 		Conn:         conn,
 		ConnID:       connID,
 		isClosed:     false,
-		Router:       router,
+		ApiHandle:    apiHandle,
 		ExitBuffChan: make(chan bool, 1),
 	}
 }
@@ -111,9 +111,7 @@ func (c *Connection) StartReader() {
 			msg:  message,
 		}
 		go func(request fiface.IRequest) {
-			c.Router.PreHandle(request)
-			c.Router.Handle(request)
-			c.Router.PostHandle(request)
+			c.ApiHandle.DoMsgHandler(request)
 		}(&req)
 	}
 }
