@@ -21,12 +21,17 @@ type GlobalConfig struct {
 var GlobalConf *GlobalConfig
 
 func (g *GlobalConfig) Reload() {
+	if "test" == os.Getenv("GO_ENV") {
+		log.Println("GlobalConfig.Reload test env continue")
+		return
+	}
 	log.Println("GlobalConfig.Reload start")
 	pwd, _ := os.Getwd()
 	log.Println("GlobalConfig.Reload pwd=", pwd)
 	data, err := ioutil.ReadFile("conf/fconfig.json")
 	if err != nil {
-		panic(err)
+		//log.Fatal("GlobalConfig file is not exist! pwd=", pwd)
+		return
 	}
 	err = json.Unmarshal(data, GlobalConf)
 	if err != nil {

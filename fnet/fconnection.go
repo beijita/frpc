@@ -1,7 +1,9 @@
 package fnet
 
 import (
+	"errors"
 	"github.com/frpc/fiface"
+	"io"
 	"log"
 	"net"
 )
@@ -13,6 +15,27 @@ type Connection struct {
 	handleAPI    fiface.HandFunc
 	ExitBuffChan chan bool
 	Router       fiface.IRouter
+}
+
+func (c *Connection) SendMsg(msgID int64, data []byte) error {
+	if c.isClosed {
+		return errors.New("connection is closed")
+	}
+	var dp DataPack
+	packData, err := dp.PackData(&Message{
+		MsgID:   msgID,
+		DataLen: int64(len(data)),
+		Data:    data,
+	})
+	if err != nil {
+		return err
+	}
+	_, err = c.Conn.Write(packData)
+	if err != nil {
+		c.ExitBuffChan <- true
+		return err
+	}
+	return nil
 }
 
 func NewConnection(conn *net.TCPConn, connID int64, router fiface.IRouter) *Connection {
@@ -62,17 +85,30 @@ func (c *Connection) RemoteAddr() net.Addr {
 func (c *Connection) StartReader() {
 	log.Println("Connection.StartReader start")
 	defer c.Stop()
+	var dp DataPack
 	for {
-		buf := make([]byte, 512)
-		_, err := c.Conn.Read(buf)
+		headData := make([]byte, dp.GetHeadLen())
+		_, err := io.ReadFull(c.GetTCPConnection(), headData)
 		if err != nil {
 			log.Println("Connection.StartReader Conn.Read err", err)
 			c.ExitBuffChan <- true
 			continue
 		}
+		message, err := dp.UnPackData(headData)
+		if err != nil {
+			return
+		}
+		if message.GetDataLen() > 0 {
+			data := make([]byte, message.GetDataLen())
+			_, err := io.ReadFull(c.GetTCPConnection(), data)
+			if err != nil {
+				return
+			}
+			message.SetData(data)
+		}
 		req := Request{
 			conn: c,
-			data: buf,
+			msg:  message,
 		}
 		go func(request fiface.IRequest) {
 			c.Router.PreHandle(request)
