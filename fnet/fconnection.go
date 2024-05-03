@@ -2,6 +2,7 @@ package fnet
 
 import (
 	"errors"
+	"github.com/frpc/fconfig"
 	"github.com/frpc/fiface"
 	"io"
 	"log"
@@ -124,8 +125,10 @@ func (c *Connection) StartReader() {
 			conn: c,
 			msg:  message,
 		}
-		go func(request fiface.IRequest) {
-			c.ApiHandle.DoMsgHandler(request)
-		}(&req)
+		if fconfig.GlobalConf.MaxPacketSize > 0 {
+			c.ApiHandle.SendMsgToTaskQueue(&req)
+		} else {
+			go c.ApiHandle.DoMsgHandler(&req)
+		}
 	}
 }

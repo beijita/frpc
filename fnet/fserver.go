@@ -44,6 +44,7 @@ func (s *Server) Start() {
 	log.Println("FServer Start")
 
 	go func() {
+		s.ApiHandle.StartWorkerPool()
 		addr, err := net.ResolveTCPAddr(s.IPVersion, fmt.Sprintf("%s:%d", s.IP, s.Port))
 		if err != nil {
 			log.Println("net.ResolveTCPAddr err=", err)
