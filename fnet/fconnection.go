@@ -12,14 +12,15 @@ type Connection struct {
 	isClosed     bool
 	handleAPI    fiface.HandFunc
 	ExitBuffChan chan bool
+	Router       fiface.IRouter
 }
 
-func NewConnection(conn *net.TCPConn, connID int64, callbackAPI fiface.HandFunc) *Connection {
+func NewConnection(conn *net.TCPConn, connID int64, router fiface.IRouter) *Connection {
 	return &Connection{
 		Conn:         conn,
 		ConnID:       connID,
 		isClosed:     false,
-		handleAPI:    callbackAPI,
+		Router:       router,
 		ExitBuffChan: make(chan bool, 1),
 	}
 }
@@ -63,16 +64,20 @@ func (c *Connection) StartReader() {
 	defer c.Stop()
 	for {
 		buf := make([]byte, 512)
-		cnt, err := c.Conn.Read(buf)
+		_, err := c.Conn.Read(buf)
 		if err != nil {
 			log.Println("Connection.StartReader Conn.Read err", err)
 			c.ExitBuffChan <- true
 			continue
 		}
-		if err := c.handleAPI(c.Conn, buf, cnt); err != nil {
-			log.Println("Connection.StartReader handleAPI err", err)
-			c.ExitBuffChan <- true
-			return
+		req := Request{
+			conn: c,
+			data: buf,
 		}
+		go func(request fiface.IRequest) {
+			c.Router.PreHandle(request)
+			c.Router.Handle(request)
+			c.Router.PostHandle(request)
+		}(&req)
 	}
 }

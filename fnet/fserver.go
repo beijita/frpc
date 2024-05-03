@@ -13,6 +13,11 @@ type Server struct {
 	IPVersion string
 	IP        string
 	Port      int
+	Router    fiface.IRouter
+}
+
+func (s *Server) AddRouter(router fiface.IRouter) {
+	s.Router = router
 }
 
 func NewServer(name string) fiface.IServer {
@@ -54,7 +59,7 @@ func (s *Server) Start() {
 				log.Println("listener.AcceptTCP err=", err)
 				continue
 			}
-			dealConn := NewConnection(conn, cid, CallBackToClient)
+			dealConn := NewConnection(conn, cid, s.Router)
 			cid++
 			go dealConn.Start()
 		}
