@@ -15,6 +15,7 @@ type Connection struct {
 	handleAPI    fiface.HandFunc
 	ExitBuffChan chan bool
 	ApiHandle    fiface.IMsgHandle
+	msgChan      chan []byte
 }
 
 func (c *Connection) SendMsg(msgID int64, data []byte) error {
@@ -30,11 +31,7 @@ func (c *Connection) SendMsg(msgID int64, data []byte) error {
 	if err != nil {
 		return err
 	}
-	_, err = c.Conn.Write(packData)
-	if err != nil {
-		c.ExitBuffChan <- true
-		return err
-	}
+	c.msgChan <- packData
 	return nil
 }
 
@@ -45,14 +42,31 @@ func NewConnection(conn *net.TCPConn, connID int64, apiHandle fiface.IMsgHandle)
 		isClosed:     false,
 		ApiHandle:    apiHandle,
 		ExitBuffChan: make(chan bool, 1),
+		msgChan:      make(chan []byte),
 	}
 }
 
 func (c *Connection) Start() {
 	log.Println("Connection.Start start")
 	go c.StartReader()
+	go c.StartWriter()
 	for {
 		select {
+		case <-c.ExitBuffChan:
+			return
+		}
+	}
+}
+
+func (c *Connection) StartWriter() {
+	log.Println("Connection.StartWriter start")
+	for {
+		select {
+		case data := <-c.msgChan:
+			_, err := c.Conn.Write(data)
+			if err != nil {
+				return
+			}
 		case <-c.ExitBuffChan:
 			return
 		}
